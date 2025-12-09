@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import { Send, Bot, Loader2, X } from 'lucide-react';
+import { Send, Bot, Loader2, X, AlertTriangle } from 'lucide-react';
 import { HYDRA_CONTEXT } from '../constants';
 
 interface Message {
   role: 'user' | 'model';
   text: string;
+  isError?: boolean;
 }
 
 const GeminiAssistant: React.FC = () => {
@@ -26,11 +27,22 @@ const GeminiAssistant: React.FC = () => {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || !process.env.API_KEY) return;
+    if (!input.trim()) return;
 
     const userMsg = input;
     setInput('');
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+
+    // Check for API Key availability
+    if (!process.env.API_KEY) {
+      setMessages(prev => [...prev, { 
+        role: 'model', 
+        text: "Deployment Config Error: API_KEY is missing. If you are viewing this on GitHub Pages or a static host, you must configure your API keys in your environment variables or build settings.",
+        isError: true 
+      }]);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -52,7 +64,11 @@ const GeminiAssistant: React.FC = () => {
       setMessages(prev => [...prev, { role: 'model', text }]);
     } catch (error) {
       console.error("Gemini Error:", error);
-      setMessages(prev => [...prev, { role: 'model', text: "Connection error. Please ensure API_KEY is set." }]);
+      setMessages(prev => [...prev, { 
+        role: 'model', 
+        text: "Connection error. The AI service is currently unreachable.",
+        isError: true
+      }]);
     } finally {
       setIsLoading(false);
     }
@@ -90,9 +106,12 @@ const GeminiAssistant: React.FC = () => {
                   className={`max-w-[85%] p-3 rounded-lg text-sm ${
                     msg.role === 'user' 
                       ? 'bg-hydra-blue text-black font-medium' 
-                      : 'bg-white/10 text-gray-200'
+                      : msg.isError
+                        ? 'bg-red-500/10 border border-red-500/50 text-red-200'
+                        : 'bg-white/10 text-gray-200'
                   }`}
                 >
+                  {msg.isError && <AlertTriangle size={14} className="inline mr-2 -mt-0.5" />}
                   {msg.text}
                 </div>
               </div>
